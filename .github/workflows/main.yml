@@ -7,11 +7,14 @@ on:
 env:
   BUILD_OUTPUT: 'build/Build/Products/Debug'
 
+permissions:
+  contents: write
+
 jobs:
 
   build:
     
-    runs-on: macos-15
+    runs-on: macos-latest
 
     steps:
 
@@ -27,11 +30,7 @@ jobs:
         eval $(grep -m 1 "MODULE_VERSION =" itlwm.xcodeproj/project.pbxproj | tr -d ';' | tr -d '\t' | tr -d " ")
         echo "SHORT_SHA=$GIT_SHA" >> $GITHUB_ENV
         echo "ITLWM_VER=$MODULE_VERSION" >> $GITHUB_ENV
-        if [[ -z $CUR_TAG ]]; then
-          echo "OLD_PRE_TAG=NULL" >> $GITHUB_ENV
-        else
-          echo "OLD_PRE_TAG=$CUR_TAG" >> $GITHUB_ENV
-        fi
+        echo "OLD_PRE_TAG=$CUR_TAG" >> $GITHUB_ENV
 
     - name: Install MacKernelSDK
       run: |
@@ -64,11 +63,12 @@ jobs:
         git log -"5" --format="- %H %s" | sed '/^$/d' >> ReleaseNotes.md
 
     - name: Delete Old Prerelease
+      if: env.OLD_PRE_TAG != '' && env.OLD_PRE_TAG != 'NULL'
+      continue-on-error: true
       uses: dev-drprasad/delete-tag-and-release@v1.0
       with:
         tag_name: ${{ env.OLD_PRE_TAG }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Publish GitHub Release
       if: contains(github.event.head_commit.message, 'Bump version') == false
